@@ -1,0 +1,2 @@
+awk -F ' ' '{print $9}' /var/log/audit/audit.log | grep 'exe' | grep -v 'systemd'
+
