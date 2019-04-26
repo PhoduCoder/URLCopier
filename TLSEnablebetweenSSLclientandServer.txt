@@ -1,0 +1,108 @@
+#How to secure communication
+#between mysql and other servers
+
+#We need to enable TLS 
+#We need to install a TLS certificate on the server
+
+#Ideally this should be certificate offered by a Certificate Authority
+# But for simplification we will use
+# a self signed certificate
+
+# We will use OpenSSL for this
+
+#First create a directory where these
+# certificates are stored
+
+mkdir ssl_certs && cd ssl_certs
+
+# Now we will create the certificate
+
+# Three types of certificates are created
+# 1. CA certificate whose process ends at this "========"
+
+# 1 CA certificate
+#----------------------------------------------------------------------
+openssl genrsa 2048 > ca-key.pem
+This generates a 2048 bit long RSA Private key
+
+#Now we will sign  the certificate
+#Ideally this should have been signed by a CA
+#But for ease we will self sign the certificate
+
+#nstead of creating a CSR (Certificate Signing Request) which would then be needed to be sent to a third party Certificate Authority for signing, we use the -x509 option to self-sign ou#r root certificate (or Certificate of Authority) using the private key we generated.
+
+openssl req -new -x509 -nodes -days 3600 ca-key.pem -out ca.pem
+
+# We will have to answer some questions here
+
+# ==========
+#----------------------------------------------------------------------
+
+# 2. Server Certificate
+# Now creating the server certificate
+
+#First we initiate a private key request.
+
+openssl req -newkey rsa:2048 -days 3600 -nodes -keyout server-key.pem -out server-req.pem
+
+#The below line removes the passphrase that was associated with the server
+openssl rsa -in server-key.pem -out server-key.pem
+
+#The root certificate we initially created (ca.pem at line 35) as well as its private key (ca-key.pem) will now be used to sign the server’s certificate. The result will be saved in 
+#server-cert.pem file
+
+openssl x509 -req -in server-req.pem -days 3600 -CA ca.pem -CAkey ca-key.pem -set_serial 01 -out server-cert.pem
+
+# ============
+
+# 3. Client Certificate
+# Follows the exact set of steps as the server certificate
+#Now we will create the client certificate that is used by clients to connect
+#The user-client who will be connecting to the MySQL server must have a certificate as well. We will follow the same procedure that we followed for the server certificate.
+
+openssl req -newkey rsa:2048 -days 3600 -nodes -keyout client-key.pem -out client-req.pem
+
+
+#We sign the certificate using our root certificate (CA).
+
+openssl x509 -req -in client-req.pem -days 3600 -CA ca.pem -CAkey ca-key.pem -set_serial 01 -out client-cert.pem
+
+#+++++++++++++++
+
+#Verify that these certificates are not corrupted
+openssl verify -CAfile ca.pem server-cert.pem client-cert.pem
+
+#+++++++++++++
+
+
+# Now the ssl_certs directory should have these files
+# ca-key.pem, ca.pem, client-cert.pem, client-key.pem, client-req.pem, server-cert.pem, server-key.pem, server-req.pem
+
+#Copy these to an appropriate directory(we are using /etc/mysql-tls) and change the file ownership to mysql user
+
+sudo chown mysql:mysql /etc/mysql-tls/*
+
+#Include these in the mysql configuration file(mysqld.cnf)
+ssl-ca=/etc/mysql-tls/ca.pem
+ssl-cert=/etc/mysql-tls/server-cert.pem
+ssl-key=/etc/mysql-tls/server-key.pem
+
+# Then restart the mysqld service for the changes to take effect
+
+#++++++++++++++++
+
+#Now check whether TLS is enabled on mysql on not
+# mysql> SHOW GLOBAL VARIABLES LIKE 'have_%ssl';
+
+++++++++++++++++++
+
+
+#Connecting to the mysql server using the client
+
+#Copy these files to client location "ca.pem, client-cert.pem and client-key.pem"
+
+# Now use the below command to connect
+
+ mysql -h 192.168.2.114 -u jason -p --ssl-ca=ca.pem --ssl-cert=client-cert.pem --ssl-key=client-key.pem
+
+++++++++++++++++++++++
