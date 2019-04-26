@@ -1,0 +1,86 @@
+#Steps to harden the HTTPD server
+
+# Go to the configuration file titled 
+# "/etc/apache2/conf-enabled/security.conf"
+
+# Add the below lines to hide the server signature
+
+ServerSignature Off
+ServerTokens Prod
+
+# Restart the apache for the changes to take its effect
+
+# /etc/init.d/apache2 restart
+
+
+#Disable the directory listing for file. By default apache shows all the directories
+
+# add the below configurations to the file "/etc/apache2/apache2.conf"
+
+Options -FollowSymLinks
+AllowOverride None
+Require all granted
+
+
+# Note that - sign before follow symlinks disable following the symlinks 
+# for apache
+
+#Disable unnecessary modules in apache
+
+# The default installation of apache comes loaded with
+# various modules. We should keep only the bare minimum required modules
+
+# To display the list of enabled modules#
+
+ ls /etc/apache2/mods-enabled/
+
+sudo a2dismod autoindex
+sudo a2dismod status
+
+# the above two modules autoindex and status are disabled
+
+# Always make use of mod_security module
+# This module is designed to take care of
+# attacks like SQL injection, cross site scripting, session hijacking, brute force and a lot of other exploits.
+
+sudo apt-get install libapache2-modsecurity
+
+# check if enabled or not
+sudo apachectl -M | grep --color security
+
+sudo mv /etc/modsecurity/modsecurity.conf-recommended /etc/modsecurity/modsecurity.conf
+sudo nano /etc/modsecurity/modsecurity.conf
+
+#add the following line to the file
+
+SecRuleEngine On
+
+
+#There are lot of security rules that come with Modesecurity (called the Core Rule Set) that are located in the “/usr/share/modsecurity-crs” directory
+
+# add the below lines to the file /etc/apache2/mods-enabled/security2.conf
+
+IncludeOptional /etc/modsecurity/*.conf
+IncludeOptional "/usr/share/modsecurity-crs/*.conf"
+IncludeOptional "/usr/share/modsecurity-crs/base_rules/*.conf
+
+
+#Restart the apache
+
+#Also add the following arguments to prevent CGI scripts from running in the apache2.conf
+
+Options -FollowSymLinks -Includes -ExecCGI
+
+# This can also be done on directory level
+
+#To limit large requests set this in the file
+
+LimitRequestBody 204800
+
+#and restart the apache service
+
+
+
+# check this link for more
+
+https://www.maketecheasier.com/securing-apache-ubuntu/
